@@ -1,13 +1,15 @@
 # src/browser_management/character_select.py
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+import logging
+
 from selenium.common.exceptions import (
     ElementClickInterceptedException,
     TimeoutException,
+    StaleElementReferenceException,
 )
-import logging
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 def select_character(browser, character_name):
@@ -72,3 +74,28 @@ def select_character(browser, character_name):
     WebDriverWait(browser, 30).until(
         EC.presence_of_element_located(welcome_back_dialog_locator)
     )
+
+    # Click all "OK" buttons that may appear
+    while True:
+        try:
+            # Re-locate the "OK" buttons in each iteration
+            ok_buttons = WebDriverWait(browser, 2).until(
+                EC.presence_of_all_elements_located(
+                    (By.CSS_SELECTOR, "button.swal2-confirm.btn.btn-primary.m-1")
+                )
+            )
+            for button in ok_buttons:
+                try:
+                    button.click()
+                except (
+                    ElementClickInterceptedException,
+                    StaleElementReferenceException,
+                ):
+                    # Use JavaScript click if the element is intercepted or stale
+                    browser.execute_script("arguments[0].click();", button)
+        except TimeoutException:
+            # No more "OK" buttons found
+            break
+        except StaleElementReferenceException:
+            # Re-locate the "OK" buttons if they become stale
+            continue
